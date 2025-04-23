@@ -1,41 +1,50 @@
 var builder = WebApplication.CreateBuilder(args);
-
-// Add services to the container.
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-builder.Services.AddOpenApi();
-
 var app = builder.Build();
-
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
-{
-    app.MapOpenApi();
-}
 
 app.UseHttpsRedirection();
 
-var summaries = new[]
-{
-    "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-};
+var tarefas = new List<Tarefa>();
+var proximoId = 1;
 
-app.MapGet("/weatherforecast", () =>
+app.MapGet("/tarefas", () => tarefas);
+
+app.MapGet("/tarefas/{id}", (int id) =>
 {
-    var forecast =  Enumerable.Range(1, 5).Select(index =>
-        new WeatherForecast
-        (
-            DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-            Random.Shared.Next(-20, 55),
-            summaries[Random.Shared.Next(summaries.Length)]
-        ))
-        .ToArray();
-    return forecast;
-})
-.WithName("GetWeatherForecast");
+    var tarefa = tarefas.FirstOrDefault(t => t.Id == id);
+    return tarefa is null ? Results.NotFound() : Results.Ok(tarefa);
+});
+
+app.MapPost("/tarefas", (Tarefa nova) =>
+{
+    nova.Id = proximoId++;
+    tarefas.Add(nova);
+    return Results.Created($"/tarefas/{nova.Id}", nova);
+});
+
+app.MapPut("/tarefas/{id}", (int id, Tarefa atualizada) =>
+{
+    var tarefa = tarefas.FirstOrDefault(t => t.Id == id);
+    if (tarefa is null) return Results.NotFound();
+
+    tarefa.Titulo = atualizada.Titulo;
+    tarefa.Concluida = atualizada.Concluida;
+    return Results.NoContent();
+});
+
+app.MapDelete("/tarefas/{id}", (int id) =>
+{
+    var tarefa = tarefas.FirstOrDefault(t => t.Id == id);
+    if (tarefa is null) return Results.NotFound();
+
+    tarefas.Remove(tarefa);
+    return Results.NoContent();
+});
 
 app.Run();
 
-record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
+record Tarefa
 {
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
+    public int Id { get; set; }
+    public string Titulo { get; set; } = "";
+    public bool Concluida { get; set; }
 }
